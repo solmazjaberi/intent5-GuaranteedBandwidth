@@ -4,7 +4,8 @@
 
 AS AutonomicNetwork {
 	ASSELF_MANAGEMENT {
-		SELF_HEALING { //in case of any problems management will be notified
+		SELF_HEALING {
+		//in case of any problems management will be notified
 			FLUENT inProblem {
 				INITIATED_BY { EVENTS.DeviceCrashed }
 				TERMINATED_BY { EVENTS.managementNotified }
@@ -22,12 +23,13 @@ AS AutonomicNetwork {
 		GROUPS {
 			GROUP discovery {
 				MEMBERS { AES.CustomerA, AES.Coordinator }
-				COUNCIL { AES.Coordinator	 }
+				COUNCIL { AES.Coordinator }
 			}
 		}
 	}
 	ACTIONS {
-		ACTION notifyManagement { //notify management for the crashed device
+		ACTION notifyManagement {
+		//notify management for the crashed device
 			GUARDS { ASSELF_MANAGEMENT.SELF_HEALING.inProblem }
 			DOES { CALL ASIP.FUNCTIONS.sendDeviceCrashedMsg }
 		}
@@ -71,21 +73,29 @@ AES {
 AE CustomerA {
   AESELF_MANAGEMENT {
     SELF_HEALING {
-      Fluent InServiceS{//0. state that service S is running for this CustomerA
+      Fluent InServiceS{
+      // 0. state that service S is running for this CustomerA
         INITIATED_BY{EVENTS.TimeForServiceS}
         TERMINATED_BY{EVENTS.ServiceSTimOut}
         }
 
-      FLUENT InUnsatisfiedBandwidth { //3.This fluent(State of the Network) happens when CustomerA has not the guaranteed bandwidth
-        INITIATED_BY { EVENTS.UnsatisfiedBandwidth } //This event starts the state of the node when the CustomerA is unfunctional
-        TERMINATED_BY { EVENTS.InterfaceChecked, EVENTS.InterfaceNotChecked }//these to events finish the state of InUnsatisfiedBandwidth
-                 }
-      FLUENT InInterfaceInActive {//6. This state is when the bandwidth issue is related to interface functionality
+      FLUENT InUnsatisfiedBandwidth {
+      // 3.This fluent(State of the Network) happens when CustomerA has not the guaranteed bandwidth
+        INITIATED_BY { EVENTS.UnsatisfiedBandwidth }
+	// This event starts the state of the node when the CustomerA is unfunctional
+        TERMINATED_BY { EVENTS.InterfaceChecked, EVENTS.InterfaceNotChecked }
+	// these to events finish the state of InUnsatisfiedBandwidth
+        }
+      FLUENT InInterfaceInActive {
+      // 6. This state is when the bandwidth issue is related to interface functionality
         INITIATED_BY { EVENTS.InterfaceInActive }
-        TERMINATED_BY { EVENTS.IsMsgInterfaceInActiveSent}//10. when the inactivity state of the interface is put into the communication channel which means notification procedure has been resolved about the problematic situation, this state will be finished
+        TERMINATED_BY { EVENTS.IsMsgInterfaceInActiveSent}
+	// 10. when the inactivity state of the interface is put into the communication channel which means
+	// notification procedure has been resolved about the problematic situation, this state will be finished
         }
 
-      FLUENT InUnsatisfiedBandwidthSimulation {// 11. as a separate state we simulate a bandwidth problem
+      FLUENT InUnsatisfiedBandwidthSimulation {
+      // 11. as a separate state we simulate a bandwidth problem
         INITIATED_BY { EVENTS.TimeToSimulateUnsatisfiedBandwidth }
         TERMINATED_BY { EVENTS.UnsatisfiedBandwidth, EVENTS.CustomerAInUnsatisfiedBandwidth }
         }
@@ -97,16 +107,18 @@ AE CustomerA {
       
       MAPPING {
         CONDITIONS { InUnsatisfiedBandwidth }
-        DO_ACTIONS { ACTIONS.CheckBandwidthIssues }//4.we are mapped or transferred to an action to check what is the problem with bandwidth
-        }
+        DO_ACTIONS { ACTIONS.CheckBandwidthIssues }
+	//4.we are mapped or transferred to an action to check what is the problem with bandwidth
+      }
       MAPPING {
         CONDITIONS { InInterfaceInActive }//7. we will be mapped to the action which is taken if the interface is inactive
         DO_ACTIONS { ACTIONS.NotifyForInActiveInterface }
-        }
+      }
       MAPPING {
         CONDITIONS { InUnsatisfiedBandwidthSimulation }
-        DO_ACTIONS { ACTIONS.SimulateUnsatisfiedBandwidth }//12. conduct the state to the corresponding action
-        }
+        DO_ACTIONS { ACTIONS.SimulateUnsatisfiedBandwidth }
+	//12. conduct the state to the corresponding action
+      }
       }
     } // AESELF_MANAGEMENT
     FRIENDS {AELIST { AES.Coordinator }}
