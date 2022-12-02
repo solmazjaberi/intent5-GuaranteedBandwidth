@@ -3,124 +3,121 @@
 //Intent: Provide Service S with guaranteed bandwidth for customer A!
 
 AS AutonomicNetwork {
-	ASSELF_MANAGEMENT {
-		SELF_HEALING {
-		//in case of any problems management will be notified
-			FLUENT inProblem {
-				INITIATED_BY { EVENTS.DeviceCrashed }
-				TERMINATED_BY { EVENTS.managementNotified }
-			}
-			MAPPING {
-				CONDITIONS { inProblem }
-				DO_ACTIONS { ACTIONS.notifyManagement }
-			}
-		}
-	} // ASSELF_MANAGEMENT
-	ASARCHITECTURE {
-		AELIST {AES.CustomerA, AES.Coordinator}
-		DIRECT_DEPENDENCIES { DEPENDENCY AES.CustomerA { AES.Coordinator }}
-		TRANSITIVE_DEPENDENCIES { DEPENDENCY AES.Coordinator  {AES.CustomerA }}
-		GROUPS {
-			GROUP discovery {
-				MEMBERS { AES.CustomerA, AES.Coordinator }
-				COUNCIL { AES.Coordinator }
-			}
-		}
-	}
-	ACTIONS {
-		ACTION notifyManagement {
-		//notify management for the crashed device
-			GUARDS { ASSELF_MANAGEMENT.SELF_HEALING.inProblem }
-			DOES { CALL ASIP.FUNCTIONS.sendDeviceCrashedMsg }
-		}
-	}
-	EVENTS {
-		EVENT DeviceCrashed { }
-		EVENT managementNotified {
-			ACTIVATION  { SENT { ASIP.MESSAGES.msgDeviceCrashed } }
-		}
-	} // EVENTS
-
-} // AS AutonomicNetwork
+  ASSELF_MANAGEMENT {
+    SELF_HEALING {
+      //in case of any problems management will be notified
+      FLUENT inProblem {
+	INITIATED_BY { EVENTS.DeviceCrashed }
+	TERMINATED_BY { EVENTS.managementNotified }
+      }//FLUENT inProblem 
+      MAPPING {
+	CONDITIONS { inProblem }
+	DO_ACTIONS { ACTIONS.notifyManagement }
+      }//MAPPING
+    }//SELF_HEALING
+  }//ASSELF_MANAGEMENT
+  ASARCHITECTURE {
+    AELIST {AES.CustomerA, AES.Coordinator}
+    DIRECT_DEPENDENCIES { DEPENDENCY AES.CustomerA { AES.Coordinator }}
+    TRANSITIVE_DEPENDENCIES { DEPENDENCY AES.Coordinator  {AES.CustomerA }}
+    GROUPS {
+      GROUP discovery {
+	MEMBERS { AES.CustomerA, AES.Coordinator }
+	COUNCIL { AES.Coordinator }
+      }//GROUP discovery 
+    }//GROUPS
+  }//ASARCHITECTURE
+  ACTIONS {
+    ACTION notifyManagement {
+      //notify management for the crashed device
+      GUARDS { ASSELF_MANAGEMENT.SELF_HEALING.inProblem }
+      DOES { CALL ASIP.FUNCTIONS.sendDeviceCrashedMsg }
+    }//ACTION notifyManagement
+  }//ACTIONS
+  EVENTS {
+    EVENT DeviceCrashed { }
+    EVENT managementNotified {
+      ACTIVATION  { SENT { ASIP.MESSAGES.msgDeviceCrashed } }
+    }//EVENT managementNotified
+  } //EVENTS
+} //AS AutonomicNetwork
 
 //==================== AS interaction protocol ============
 ASIP {
-	MESSAGES {
-		MESSAGE msgDeviceCrashed {
-			SENDER { ANY }
-			RECEIVER { ANY }
-			PRIORITY { 1 }
-			MSG_TYPE {	TEXT }
-			BODY { "Crashed Device" }
-		}
-	}
-	CHANNELS {
-		CHANNEL Public_Link {
-			ACCEPTS { ASIP.MESSAGES.msgDeviceCrashed }
-			ACCESS { SEQUENTIAL }
-			DIRECTION { INOUT } }
-	}
-	FUNCTIONS {
-		FUNCTION sendDeviceCrashedMsg {
-			DOES { ASIP.MESSAGES.msgDeviceCrashed >> ASIP.CHANNELS.Public_Link }
-		}
-	}
-}
+  MESSAGES {
+    MESSAGE msgDeviceCrashed {
+      SENDER { ANY }
+      RECEIVER { ANY }
+      PRIORITY { 1 }
+      MSG_TYPE { TEXT }
+      BODY { "Crashed Device" }
+    }//MESSAGE msgDeviceCrashed
+  }//MESSAGES
+  CHANNELS {
+    CHANNEL Public_Link {
+      ACCEPTS { ASIP.MESSAGES.msgDeviceCrashed }
+      ACCESS { SEQUENTIAL }
+      DIRECTION { INOUT } 
+    }//CHANNEL Public_Link
+  }//CHANNELS
+  FUNCTIONS {
+    FUNCTION sendDeviceCrashedMsg {
+      DOES { ASIP.MESSAGES.msgDeviceCrashed >> ASIP.CHANNELS.Public_Link }
+    }//FUNCTION sendDeviceCrashedMsg
+  }//FUNCTIONS
+}//ASIP
 
 //==================== autonomic elements ===================
 AES {
-//==================== CustomerA ========================
-AE CustomerA {
-  AESELF_MANAGEMENT {
-    SELF_HEALING {
-      Fluent InServiceS{
-      // 0. state that service S is running for this CustomerA
-        INITIATED_BY{EVENTS.TimeForServiceS}
-        TERMINATED_BY{EVENTS.ServiceSTimOut}
-        }
-
-      FLUENT InUnsatisfiedBandwidth {
-      // 3.This fluent(State of the Network) happens when CustomerA has not the guaranteed bandwidth
-        INITIATED_BY { EVENTS.UnsatisfiedBandwidth }
-	// This event starts the state of the node when the CustomerA is unfunctional
-        TERMINATED_BY { EVENTS.InterfaceChecked, EVENTS.InterfaceNotChecked }
-	// these to events finish the state of InUnsatisfiedBandwidth
-        }
-      FLUENT InInterfaceInActive {
-      // 6. This state is when the bandwidth issue is related to interface functionality
-        INITIATED_BY { EVENTS.InterfaceInActive }
-        TERMINATED_BY { EVENTS.IsMsgInterfaceInActiveSent}
-	// 10. when the inactivity state of the interface is put into the communication channel which means
-	// notification procedure has been resolved about the problematic situation, this state will be finished
-        }
-
-      FLUENT InUnsatisfiedBandwidthSimulation {
-      // 11. as a separate state we simulate a bandwidth problem
-        INITIATED_BY { EVENTS.TimeToSimulateUnsatisfiedBandwidth }
-        TERMINATED_BY { EVENTS.UnsatisfiedBandwidth, EVENTS.CustomerAInUnsatisfiedBandwidth }
-        }
-
-      MAPPING{//step 0.1
-        CONDITIONS{InServiceS}
-        DO_ACTIONS{ACTIONS.ServiceSinProgress}
-      }
-      
-      MAPPING {
-        CONDITIONS { InUnsatisfiedBandwidth }
-        DO_ACTIONS { ACTIONS.CheckBandwidthIssues }
-	//4.we are mapped or transferred to an action to check what is the problem with bandwidth
-      }
-      MAPPING {
-        CONDITIONS { InInterfaceInActive }//7. we will be mapped to the action which is taken if the interface is inactive
-        DO_ACTIONS { ACTIONS.NotifyForInActiveInterface }
-      }
-      MAPPING {
-        CONDITIONS { InUnsatisfiedBandwidthSimulation }
-        DO_ACTIONS { ACTIONS.SimulateUnsatisfiedBandwidth }
-	//12. conduct the state to the corresponding action
-      }
-      }
-    } // AESELF_MANAGEMENT
+  //==================== CustomerA ========================
+  AE CustomerA {
+    AESELF_MANAGEMENT {
+      SELF_HEALING {
+        FLUENT InServiceS{
+          // 0. state that service S is running for this CustomerA
+          INITIATED_BY{EVENTS.TimeForServiceS}
+          TERMINATED_BY{EVENTS.ServiceSTimOut}
+        }//FLUENT InServiceS
+        FLUENT InUnsatisfiedBandwidth {
+          // 3.This fluent(State of the Network) happens when CustomerA has not the guaranteed bandwidth
+          INITIATED_BY { EVENTS.UnsatisfiedBandwidth }
+          // This event starts the state of the node when the CustomerA is unfunctional
+          TERMINATED_BY { EVENTS.InterfaceChecked, EVENTS.InterfaceNotChecked }
+          // these to events finish the state of InUnsatisfiedBandwidth
+        }//FLUENT InUnsatisfiedBandwidth
+        FLUENT InInterfaceInActive {
+          // 6. This state is when the bandwidth issue is related to interface functionality
+          INITIATED_BY { EVENTS.InterfaceInActive }
+          TERMINATED_BY { EVENTS.IsMsgInterfaceInActiveSent}
+          // 10. when the inactivity state of the interface is put into the communication channel which means
+	  // notification procedure has been resolved about the problematic situation, this state will be finished
+        }//FLUENT InInterfaceInActive
+        FLUENT InUnsatisfiedBandwidthSimulation {
+          // 11. as a separate state we simulate a bandwidth problem
+          INITIATED_BY { EVENTS.TimeToSimulateUnsatisfiedBandwidth }
+          TERMINATED_BY { EVENTS.UnsatisfiedBandwidth, EVENTS.CustomerAInUnsatisfiedBandwidth }
+        }//FLUENT InUnsatisfiedBandwidthSimulation
+        MAPPING {
+          //step 0.1
+          CONDITIONS{InServiceS}
+          DO_ACTIONS{ACTIONS.ServiceSinProgress}
+        }//MAPPING
+        MAPPING {
+          CONDITIONS { InUnsatisfiedBandwidth }
+          DO_ACTIONS { ACTIONS.CheckBandwidthIssues }
+          //4.we are mapped or transferred to an action to check what is the problem with bandwidth
+        }//MAPPING
+        MAPPING {
+          CONDITIONS { InInterfaceInActive }//7. we will be mapped to the action which is taken if the interface is inactive
+          DO_ACTIONS { ACTIONS.NotifyForInActiveInterface }
+        }//MAPPING
+        MAPPING {
+          CONDITIONS { InUnsatisfiedBandwidthSimulation }
+          DO_ACTIONS { ACTIONS.SimulateUnsatisfiedBandwidth }
+          //12. conduct the state to the corresponding action
+        }//MAPPING
+      }//SELF_HEALING
+    }//AESELF_MANAGEMENT
     FRIENDS {AELIST { AES.Coordinator }}
     AEIP {
       MESSAGES {
@@ -129,203 +126,210 @@ AE CustomerA {
           RECEIVER { AES.Coordinator }
           MSG_TYPE { TEXT }
           BODY { "Interface Issue" }
-          }
-///////////////////////////////////////////////
-//this message is for initiation of service S
+        }//FINAL MESSAGE InterfaceInActiveMsg
+        ///////////////////////////////////////////////
+        // this message is for initiation of service S
         FINAL MESSAGE RunServiceSMsg {
-             SENDER { AES.CustomerA  }
-             RECEIVER { AES.Coordinator }
-             MSG_TYPE { TEXT }
-             BODY { "Initiation of Service S" }
-                }
-///////////////////////////////////////////////
-                }
-
+          SENDER { AES.CustomerA  }
+          RECEIVER { AES.Coordinator }
+          MSG_TYPE { TEXT }
+          BODY { "Initiation of Service S" }
+        }//FINAL MESSAGE RunServiceSMsg
+        ///////////////////////////////////////////////
+      }//MESSAGES
       CHANNELS {
         CHANNEL Private_Link {
           ACCEPTS { AEIP.MESSAGES.InterfaceInActiveMsg , AEIP.MESSAGES.RunServiceSMsg }
           ACCESS { SEQUENTIAL }
           DIRECTION { INOUT }
-            }
-          }
+        }//CHANNEL Private_Link
+      }//CHANNELS
       FUNCTIONS {
-        FUNCTION SendInterfaceInActiveMsg {//9. the intercae inActive will be sent to the private link accessible by AEs
+        FUNCTION SendInterfaceInActiveMsg {
+          //9. the intercae inActive will be sent to the private link accessible by AEs
           DOES { AEIP.MESSAGES.InterfaceInActiveMsg >> AEIP.CHANNELS.Private_Link }
-          }
-
-      /////////////////////////
+        }//FUNCTION SendInterfaceInActiveMsg
+        /////////////////////////
         FUNCTION RunServiceSMsg {
           DOES { AEIP.MESSAGES.RunServiceSMsg >> AEIP.CHANNELS.Private_Link }
-        }
-      ////////////////////////
-      }
-      MANAGED_ELEMENTS {
-        
+        }//FUNCTION RunServiceSMsg
+        ////////////////////////
+      }//FUNCTIONS
+      MANAGED_ELEMENTS { 
         MANAGED_ELEMENT CustomerA {
-        
-          INTERFACE_FUNCTION getBandwidthA { RETURNS { DECIMAL } }//0. Firstly, Metric is achieved from here that connects the AS to a managed element to control it
-            }
+          INTERFACE_FUNCTION getBandwidthA { RETURNS { DECIMAL } }
+          //0. Firstly, Metric is achieved from here that connects the AS to a managed element to control it
+        }//MANAGED_ELEMENT CustomerA
         MANAGED_ELEMENT ServiceS{
           INTERFACE_FUNCTION ServiceSInt{}
-        }  }
-          } // AEIP
-      ACTIONS {
-
-        ACTION ServiceSinProgress{
-          GUARDS{AESELF_MANAGEMENT.SELF_HEALING.InServiceS}
-          DOES{CALL AEIP.MANAGED_ELEMENTS.ServiceS.ServiceSInt}
-          TRIGGERS{EVENTS.ServiceSTimOut}
-          
-        }
-        
-        ACTION IMPL checkInterface {//5.4 this estimates if the interface to check the bandwidth is working or not
-          RETURNS { BOOLEAN }
-          TRIGGERS { EVENTS.InterfaceChecked }
-          }
-        ACTION CheckBandwidthIssues {//5.checking the issue of the bandwidth
-          GUARDS { AESELF_MANAGEMENT.SELF_HEALING.InUnsatisfiedBandwidth AND METRICS.BandwidthA}//5.1 if these two conditions happens we go to next sub step
-          VARS { BOOLEAN deviceActive }//5.2 check if the problem is related to the interface so we assess if the interface is active or not
-          DOES { deviceActive = true; CALL ACTIONS.checkInterface } //5.3 first operation is when device is active, so we check if the interface is functional through a call to an IMPL action
-          TRIGGERS { IF (not deviceActive) THEN EVENTS.InterfaceInActive END }//5.5 the event that interface is not functioning is triggered
-          ONERR_TRIGGERS { EVENTS.InterfaceNotChecked }//5.6 Events which should be triggered in case of any exception happening for the specified action
-          }
-        ACTION NotifyForInActiveInterface {//8. notification sending because of inactive interface
-          GUARDS { AESELF_MANAGEMENT.SELF_HEALING.InInterfaceInActive }
-          DOES { CALL AEIP.FUNCTIONS.SendInterfaceInActiveMsg }
-          }
-
-        ACTION SimulateUnsatisfiedBandwidth { //13. what is done if there is a problem with bandwidth (except the issues caused by the interface fault)
-          GUARDS { AESELF_MANAGEMENT.SELF_HEALING.InUnsatisfiedBandwidthSimulation AND METRICS.BandwidthA }
-          DOES { SET METRICS.BandwidthA.VALUE = 10 } //13.1 bandwidth value will be set to 10 which is the maximum rate for the Ethernet technology
-          ONERR_TRIGGERS { EVENTS.CustomerAInUnsatisfiedBandwidth }//13.2 in case of any exceptions this event will be triggered
-            }
-          } // ACTIONS
-      EVENTS {
-
-        EVENT TimeForServiceS { ACTIVATION { SENT { AEIP.MESSAGES.RunServiceSMsg }}}//starts service S running state(Fluent)
-        EVENT ServiceSTimOut { ACTIVATION { OCCURRED { EVENTS.UnsatisfiedBandwidth  } } }//finishing service S running state since the desired condition is not met
-        EVENT UnsatisfiedBandwidth {//2 .This event triggers when bandwidth threshold is not met
-          GUARDS { not METRICS.BandwidthA }
-          ACTIVATION { CHANGED { METRICS.BandwidthA } } }
-        EVENT IsMsgInterfaceInActiveSent { ACTIVATION { SENT { AEIP.MESSAGES.InterfaceInActiveMsg } } }
-        EVENT InterfaceInActive { }
-        EVENT InterfaceChecked { }
-        EVENT InterfaceNotChecked { }
-        EVENT TimeToSimulateUnsatisfiedBandwidth { ACTIVATION { PERIOD { 50 sec } } }
-        EVENT CustomerAInUnsatisfiedBandwidth { }
-        } // EVENTS
-      METRICS {
-        METRIC BandwidthA {//1.This metric is fundamental measurement to check if the intent is achieved
-          METRIC_TYPE { RESOURCE }
-          METRIC_SOURCE { AEIP.MANAGED_ELEMENTS.CustomerA.getBandwidthA }
-          DESCRIPTION { "This is the bandwidth for customer A!" }
-          MEASURE_UNIT { "Mbit/s" }
-          //This is the maximum bandwidth for Ethernet technology, for this scenario,
-          //I chose 10 randomly for the metric value and it can be compared to the threshold class and if it
-          //violates that, the undesirable state for this scenario which is not BandwithGuaranteed will occur
-          VALUE { 10 }
-          THRESHOLD_CLASS { DECIMAL [5 ~ 10] } //based on the Ethernet technology capacity
-          }
-        }
-    } // AE CustomerA
+        }//MANAGED_ELEMENT ServiceS
+      }//MANAGED_ELEMENTS
+    }//AEIP
+    ACTIONS {
+      ACTION ServiceSinProgress{
+        GUARDS{AESELF_MANAGEMENT.SELF_HEALING.InServiceS}
+        DOES{CALL AEIP.MANAGED_ELEMENTS.ServiceS.ServiceSInt}
+        TRIGGERS{EVENTS.ServiceSTimOut} 
+      }//ACTION ServiceSinProgress  
+      ACTION IMPL checkInterface {
+        //5.4 this estimates if the interface to check the bandwidth is working or not  
+        RETURNS { BOOLEAN }
+        TRIGGERS { EVENTS.InterfaceChecked }
+      }//ACTION IMPL checkInterface
+      ACTION CheckBandwidthIssues {
+        //5.checking the issue of the bandwidth
+        GUARDS { AESELF_MANAGEMENT.SELF_HEALING.InUnsatisfiedBandwidth AND METRICS.BandwidthA}
+        //5.1 if these two conditions happens we go to next sub step
+        VARS { BOOLEAN deviceActive }
+        //5.2 check if the problem is related to the interface so we assess if the interface is active or not
+        DOES { deviceActive = true; CALL ACTIONS.checkInterface } 
+        //5.3 first operation is when device is active, so we check if the interface is functional through a call to an IMPL action
+        TRIGGERS { IF (not deviceActive) THEN EVENTS.InterfaceInActive END }
+        //5.5 the event that interface is not functioning is triggered
+        ONERR_TRIGGERS { EVENTS.InterfaceNotChecked }
+        //5.6 Events which should be triggered in case of any exception happening for the specified action
+      }//ACTION CheckBandwidthIssues
+      ACTION NotifyForInActiveInterface {
+        //8. notification sending because of inactive interface
+        GUARDS { AESELF_MANAGEMENT.SELF_HEALING.InInterfaceInActive }
+        DOES { CALL AEIP.FUNCTIONS.SendInterfaceInActiveMsg }
+      }//ACTION NotifyForInActiveInterface
+      ACTION SimulateUnsatisfiedBandwidth { 
+        //13. what is done if there is a problem with bandwidth (except the issues caused by the interface fault)
+        GUARDS { AESELF_MANAGEMENT.SELF_HEALING.InUnsatisfiedBandwidthSimulation AND METRICS.BandwidthA }
+        DOES { SET METRICS.BandwidthA.VALUE = 10 } //13.1 bandwidth value will be set to 10 which is the maximum rate for the Ethernet technology
+        ONERR_TRIGGERS { EVENTS.CustomerAInUnsatisfiedBandwidth }//13.2 in case of any exceptions this event will be triggered
+      }//ACTION SimulateUnsatisfiedBandwidth
+    }//ACTIONS
+    EVENTS {
+      EVENT TimeForServiceS { 
+        ACTIVATION { SENT { AEIP.MESSAGES.RunServiceSMsg }}
+      }//EVENT TimeForServiceS
+      //starts service S running state(Fluent)
+      EVENT ServiceSTimOut { 
+        ACTIVATION { OCCURRED { EVENTS.UnsatisfiedBandwidth  } } 
+      }//EVENT ServiceSTimOut
+      //finishing service S running state since the desired condition is not met
+      EVENT UnsatisfiedBandwidth {
+        //2 .This event triggers when bandwidth threshold is not met
+        GUARDS { not METRICS.BandwidthA }
+        ACTIVATION { CHANGED { METRICS.BandwidthA } } 
+      }//EVENT UnsatisfiedBandwidth
+      EVENT IsMsgInterfaceInActiveSent { ACTIVATION { SENT { AEIP.MESSAGES.InterfaceInActiveMsg } } }
+      EVENT InterfaceInActive { }
+      EVENT InterfaceChecked { }
+      EVENT InterfaceNotChecked { }
+      EVENT TimeToSimulateUnsatisfiedBandwidth { ACTIVATION { PERIOD { 50 sec } } }
+      EVENT CustomerAInUnsatisfiedBandwidth { }
+    }//EVENTS
+    METRICS {
+      METRIC BandwidthA {//1.This metric is fundamental measurement to check if the intent is achieved
+        METRIC_TYPE { RESOURCE }
+        METRIC_SOURCE { AEIP.MANAGED_ELEMENTS.CustomerA.getBandwidthA }
+        DESCRIPTION { "This is the bandwidth for customer A!" }
+        MEASURE_UNIT { "Mbit/s" }
+        //This is the maximum bandwidth for Ethernet technology, for this scenario,
+        //I chose 10 randomly for the metric value and it can be compared to the threshold class and if it
+        //violates that, the undesirable state for this scenario which is not BandwithGuaranteed will occur
+        VALUE { 10 }
+        THRESHOLD_CLASS { DECIMAL [5 ~ 10] } //based on the Ethernet technology capacity
+      }//METRIC BandwidthA
+    }//METRICS
+  }//AE CustomerA
   //==================== Coordinator ========================
-AE Coordinator {
+  AE Coordinator {
     AESELF_MANAGEMENT {
       SELF_HEALING {
         FLUENT InUnsatisfiedBandwidth {
           INITIATED_BY { EVENTS.UnsatisfiedBandwidth }
           TERMINATED_BY { EVENTS.DeviceChecked, AS.EVENTS.DeviceCrashed }
-          }
-      //  FLUENT InFunctionalityNotif {
-      //    INITIATED_BY { EVENTS.TimeToReceiveFunctionalityMsg }
-      //    TERMINATED_BY { EVENTS.MsgFunctionalityReceived, AS.EVENTS.DeviceCrashed }
-      //    }
-
-
+        }//FLUENT InUnsatisfiedBandwidth
+        //  FLUENT InFunctionalityNotif {
+        //    INITIATED_BY { EVENTS.TimeToReceiveFunctionalityMsg }
+        //    TERMINATED_BY { EVENTS.MsgFunctionalityReceived, AS.EVENTS.DeviceCrashed }
+        //    }
         MAPPING {
           CONDITIONS { InUnsatisfiedBandwidth }
           DO_ACTIONS { ACTIONS.CheckDevice }
-          }
+        }//MAPPING
         //MAPPING {
         //  CONDITIONS { InFunctionalityNotif }
         //  DO_ACTIONS { ACTIONS.ConfirmFunctionality }
         //  }
-
-      }
-    } // AESELF_MANAGEMENT
-  AEIP {
-
-
-////messaging from coordinator to Customer A to run service S, ask about unidirectional concept
-//  MESSAGES {
-//    FINAL MESSAGE RunServiceSMsg {
-//      SENDER { AES.Coordinator  }
-//      RECEIVER { AES.CustomerA }
-//      MSG_TYPE { TEXT }
-//      BODY { "Initiation of Service S" }
-//      }}
-//  CHANNELS {
-//    CHANNEL Private_Link2 {
-//      ACCEPTS { AEIP.MESSAGES.RunServiceSMsg }
-//      ACCESS { SEQUENTIAL }
-//      DIRECTION { INOUT }
-//      }
-//      }
-///////////////////////////////////////////////////////////////
-
-
-    FUNCTIONS {
-  ///////////////////////////////////////////////////////////////
-  //    FUNCTION SendRunServiceSMsg {
-  //      DOES { AEIP.MESSAGES.RunServiceSMsg >> AEIP.CHANNELS.Private_Link}
-  //      }
-  ///////////////////////////////////////////////////////////////
-
-      FUNCTION ReceivedInterfaceInActiveMsg {
-        DOES { AES.CustomerA.AEIP.MESSAGES.InterfaceInActiveMsg << AES.CustomerA.AEIP.CHANNELS.Private_Link }
-      }
-      FUNCTION ReceiveRunServiceSMsg {
-        DOES { AES.CustomerA.AEIP.MESSAGES.RunServiceSMsg << AES.CustomerA.AEIP.CHANNELS.Private_Link}
-          }
-    }
-    MANAGED_ELEMENTS {
-      MANAGED_ELEMENT Coordinator {
-        INTERFACE_FUNCTION getBandwidthA { RETURNS { DECIMAL } }
-      }
-    }
-  } // AEIP
-  ACTIONS {
-    ACTION IMPL CheckDevice {
-      TRIGGERS { EVENTS.DeviceChecked }
-      ONERR_TRIGGERS { AS.EVENTS.DeviceCrashed }
-    }
-
-  //  ACTION CheckCustomerAToolStatus {
-  //    GUARDS { AESELF_MANAGEMENT.SELF_HEALING.InCheckingCustomerATool }
-  //    DOES { CALL AEIP.FUNCTIONS.ReceivedInterfaceInActiveMsg }
-  //    TRIGGERS {
-  //    IF EVENTS.msgInterfaceInActiveReceived THEN EVENTS.ToolNotFound END
-  //    ELSE EVENTS.ToolOk END
-  //  }
-  //  }
-
-  }
-  EVENTS {
-    EVENT UnsatisfiedBandwidth {
-      GUARDS { not METRICS.BandwidthA }
-      ACTIVATION { CHANGED { METRICS.BandwidthA } }}
-    EVENT DeviceChecked { }
-    EVENT msgInterfaceInActiveReceived { ACTIVATION { RECEIVED { AES.CustomerA.AEIP.MESSAGES.InterfaceInActiveMsg } }}
+      }//SELF_HEALING
+    }//AESELF_MANAGEMENT
+    AEIP {
+      ////messaging from coordinator to Customer A to run service S, ask about unidirectional concept
+      //  MESSAGES {
+      //    FINAL MESSAGE RunServiceSMsg {
+      //      SENDER { AES.Coordinator  }
+      //      RECEIVER { AES.CustomerA }
+      //      MSG_TYPE { TEXT }
+      //      BODY { "Initiation of Service S" }
+      //      }} 
+      //  CHANNELS {
+      //    CHANNEL Private_Link2 {
+      //      ACCEPTS { AEIP.MESSAGES.RunServiceSMsg }
+      //      ACCESS { SEQUENTIAL }
+      //      DIRECTION { INOUT }
+      //      }
+      //      }
+      ///////////////////////////////////////////////////////////////
+      FUNCTIONS {
+        ///////////////////////////////////////////////////////////////
+        //    FUNCTION SendRunServiceSMsg {
+        //      DOES { AEIP.MESSAGES.RunServiceSMsg >> AEIP.CHANNELS.Private_Link}
+        //      }
+        ///////////////////////////////////////////////////////////////
+        FUNCTION ReceivedInterfaceInActiveMsg {
+          DOES { AES.CustomerA.AEIP.MESSAGES.InterfaceInActiveMsg << AES.CustomerA.AEIP.CHANNELS.Private_Link }
+        }//FUNCTION ReceivedInterfaceInActiveMsg
+        FUNCTION ReceiveRunServiceSMsg {
+          DOES { AES.CustomerA.AEIP.MESSAGES.RunServiceSMsg << AES.CustomerA.AEIP.CHANNELS.Private_Link}
+        }//FUNCTION ReceiveRunServiceSMsg
+      }//FUNCTIONS
+      MANAGED_ELEMENTS {
+        MANAGED_ELEMENT Coordinator {
+          INTERFACE_FUNCTION getBandwidthA { RETURNS { DECIMAL } }
+        }//MANAGED_ELEMENT Coordinator
+      }//MANAGED_ELEMENTS
+    }//AEIP
+    ACTIONS {
+      ACTION IMPL CheckDevice {
+        TRIGGERS { EVENTS.DeviceChecked }
+        ONERR_TRIGGERS { AS.EVENTS.DeviceCrashed }
+      }//ACTION IMPL CheckDevice 
+      //  ACTION CheckCustomerAToolStatus {
+      //    GUARDS { AESELF_MANAGEMENT.SELF_HEALING.InCheckingCustomerATool }
+      //    DOES { CALL AEIP.FUNCTIONS.ReceivedInterfaceInActiveMsg }
+      //    TRIGGERS {
+      //    IF EVENTS.msgInterfaceInActiveReceived THEN EVENTS.ToolNotFound END
+      //    ELSE EVENTS.ToolOk END
+      //  }
+      //  }
+    }//ACTIONS
+    EVENTS {
+      EVENT UnsatisfiedBandwidth {
+        GUARDS { not METRICS.BandwidthA }
+        ACTIVATION { CHANGED { METRICS.BandwidthA } }
+      }//EVENT UnsatisfiedBandwidth
+      EVENT DeviceChecked { }
+      EVENT msgInterfaceInActiveReceived { ACTIVATION { RECEIVED { AES.CustomerA.AEIP.MESSAGES.InterfaceInActiveMsg } }
+      }//EVENT msgInterfaceInActiveReceived
     } // EVENTS
-  METRICS {
-    METRIC BandwidthA {
-      METRIC_TYPE { RESOURCE }
-      METRIC_SOURCE { AEIP.MANAGED_ELEMENTS.Coordinator.getBandwidthA }
-      DESCRIPTION { "This is the bandwidth for customer A!" }
-      MEASURE_UNIT { "Mbit/s" }//The traffic is considered based on an Ethernet connection
-      //This is the maximum bandwidth for Ethernet technology, for this scenario,
-      //I chose 10 randomly for the metric value and it can be compared to the threshold class and if it
-      VALUE { 10 }
-      THRESHOLD_CLASS { DECIMAL [5 ~ 10] } //This is based on the maximum bandwidth that can be transferred by the Ethernet
-    }}} // AE Coordinator
-  }
+    METRICS {
+      METRIC BandwidthA {
+        METRIC_TYPE { RESOURCE }
+        METRIC_SOURCE { AEIP.MANAGED_ELEMENTS.Coordinator.getBandwidthA }
+        DESCRIPTION { "This is the bandwidth for customer A!" }
+        MEASURE_UNIT { "Mbit/s" }
+        //The traffic is considered based on an Ethernet connection
+        //This is the maximum bandwidth for Ethernet technology, for this scenario,
+        //I chose 10 randomly for the metric value and it can be compared to the threshold class and if it
+        VALUE { 10 }
+        THRESHOLD_CLASS { DECIMAL [5 ~ 10] } 
+        //This is based on the maximum bandwidth that can be transferred by the Ethernet
+      }//METRIC BandwidthA
+    }//METRICS
+  }//AE Coordinator
+}//AES
